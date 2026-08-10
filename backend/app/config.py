@@ -40,6 +40,7 @@ class Settings:
     twin_regression_tolerance: float = 0.05
     anomaly_distance_cap: float = 10.0
     anomaly_mad_threshold: float = 3.5
+    anomaly_cosine_threshold: float = 0.5
     reported_metric_tolerance: float = 0.30
     reputation_reward: int = 2
     reputation_penalty: int = 10
@@ -115,6 +116,9 @@ class Settings:
             ),
             anomaly_distance_cap=float(os.getenv("MEDCHAIN_ANOMALY_DISTANCE_CAP", str(cls.anomaly_distance_cap))),
             anomaly_mad_threshold=float(os.getenv("MEDCHAIN_ANOMALY_MAD_THRESHOLD", str(cls.anomaly_mad_threshold))),
+            anomaly_cosine_threshold=float(
+                os.getenv("MEDCHAIN_ANOMALY_COSINE_THRESHOLD", str(cls.anomaly_cosine_threshold))
+            ),
             reported_metric_tolerance=float(
                 os.getenv("MEDCHAIN_REPORTED_METRIC_TOLERANCE", str(cls.reported_metric_tolerance))
             ),

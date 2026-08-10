@@ -38,8 +38,42 @@ def parse_csv(text: str) -> tuple[list[str], list[dict[str, str]]]:
     return list(reader.fieldnames), rows
 
 
-def derive_schema(text: str, target_column: str | None = None) -> DerivedSchema:
-    """Build the schema from CSV text. The target column defaults to the last column."""
+def detect_labels(
+    text: str, target_column: str | None = None
+) -> dict[str, object]:
+    """Parse a CSV and return the two class labels + a suggested positive label.
+
+    This powers the preview endpoint so the coordinator can see what the server
+    detected before committing to a choice.
+    """
+    columns, rows = parse_csv(text)
+    target = target_column or columns[-1]
+    if target not in columns:
+        raise ValueError(f"Target column '{target}' is not present in the CSV")
+    raw_targets = [row[target] for row in rows]
+    labels = sorted({value for value in raw_targets})
+    if len(labels) != 2:
+        raise ValueError(
+            f"Target column '{target}' must have exactly two classes; found {len(labels)}"
+        )
+    return {
+        "labels": labels,
+        "suggested_positive": _pick_positive(labels),
+        "target_column": target,
+    }
+
+
+def derive_schema(
+    text: str,
+    target_column: str | None = None,
+    positive_label: str | None = None,
+) -> DerivedSchema:
+    """Build the schema from CSV text.
+
+    *target_column* defaults to the last column.  *positive_label*, when
+    provided, must be one of the two detected classes and is used directly;
+    otherwise the heuristic ``_pick_positive`` supplies a best-effort guess.
+    """
     columns, rows = parse_csv(text)
     target = target_column or columns[-1]
     if target not in columns:
@@ -54,8 +88,17 @@ def derive_schema(text: str, target_column: str | None = None) -> DerivedSchema:
         raise ValueError(
             f"Target column '{target}' must have exactly two classes; found {len(labels)}"
         )
-    # Positive label = the one that looks truthy (1/true/yes/positive/malignant...), else the 2nd.
-    positive = _pick_positive(labels)
+
+    # Use the coordinator's explicit choice when given; fall back to heuristic.
+    if positive_label is not None:
+        if positive_label not in labels:
+            raise ValueError(
+                f"positive_label '{positive_label}' is not one of the detected "
+                f"classes: {labels}"
+            )
+        positive = positive_label
+    else:
+        positive = _pick_positive(labels)
     negative = labels[0] if labels[1] == positive else labels[1]
 
     try:
