@@ -1,0 +1,89 @@
+# ── MedChain — Docker Compose ─────────────────────────────────────────────────
+# All images are built from the project root (context: .) so every Dockerfile
+# can access both backend/ and contracts/ in one build context.
+#
+# Start the platform:
+#   docker compose up --build
+#
+# Also run a hospital node-agent (opt-in):
+#   docker compose --profile agent up --build
+#
+# Recompile Solidity contracts (one-shot):
+#   docker compose run --rm contracts
+#
+# URLs when running locally:
+#   Backend API  → http://localhost:8000
+#   Frontend     → http://localhost:4173
+#   API Docs     → http://localhost:8000/docs
+
+services:
+
+  # ── Backend (FastAPI / uvicorn) ─────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env          # secrets supplied at runtime, never baked in
+    # Restart unless explicitly stopped
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Frontend (Vite preview / Node) ──────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # Points the bundled app at the backend. Change this for production.
+        VITE_MEDCHAIN_API_URL: http://localhost:8000
+    ports:
+      - "4173:4173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Hospital node-agent (opt-in — use --profile agent) ──────────────────────
+  node-agent:
+    profiles: ["agent"]
+    build:
+      context: clients
+      dockerfile: Dockerfile
+    environment:
+      # Override any of these from your shell or a separate .env file:
+      MEDCHAIN_API: http://backend:8000
+      MEDCHAIN_EMAIL: ""
+      MEDCHAIN_PASSWORD: ""
+      MEDCHAIN_HOSPITAL_ID: ""
+      MEDCHAIN_OBJECTIVE_ID: ""
+      MEDCHAIN_CSV_PATH: /data/hospital.csv
+      MEDCHAIN_POLL_SECONDS: "10"
+    volumes:
+      # Mount your hospital's CSV read-only:
+      # - /path/to/your/data.csv:/data/hospital.csv:ro
+      []
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Contract compiler (one-shot helper) ─────────────────────────────────────
+  contracts:
+    profiles: ["compile"]
+    build:
+      context: .
+      dockerfile: contracts/Dockerfile
+    volumes:
+      # Compiled artifacts are written back to the host so the backend image
+      # can pick them up on the next `docker compose build`:
+      - ./contracts/artifacts:/build/artifacts
+    restart: "no"

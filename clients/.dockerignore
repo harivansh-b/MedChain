@@ -1,0 +1,6 @@
+# clients/.dockerignore — build context is the clients/ folder
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.csv
