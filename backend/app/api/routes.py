@@ -20,7 +20,7 @@ from ..models import (
     ValidationReport,
     new_id,
 )
-from ..services.dataset import derive_schema
+from ..services.dataset import derive_schema, detect_labels
 from ..services.runtime import MedChainRuntime
 from ..store import Repository
 from .auth_routes import auth_router
@@ -64,6 +64,13 @@ class ObjectiveCreate(BaseModel):
     # Optional labeled validation CSV (raw text). When present, the server derives the
     # per-objective feature schema + scaler + validation set from it.
     validation_csv: str | None = None
+    target_column: str | None = None
+    # Explicit positive-class label. When None the server uses a word-match heuristic.
+    positive_label: str | None = None
+
+
+class DetectLabelsRequest(BaseModel):
+    validation_csv: str
     target_column: str | None = None
 
 
@@ -243,6 +250,21 @@ async def list_objectives(
     return await repo.list("training_objectives", TrainingObjective)
 
 
+@router.post("/training-objectives/detect-labels")
+async def detect_labels_endpoint(
+    body: DetectLabelsRequest,
+    user: User = Depends(require_roles("platform_admin", "hospital_admin")),
+) -> dict[str, Any]:
+    """Parse a validation CSV and return the two detected class labels + a
+    suggested positive label.  The coordinator reviews this before creating the
+    objective with an explicit ``positive_label``."""
+    _ = user
+    try:
+        return detect_labels(body.validation_csv, body.target_column)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post("/training-objectives", response_model=TrainingObjective)
 async def create_objective(
     body: ObjectiveCreate,
@@ -252,11 +274,12 @@ async def create_objective(
     fields = body.model_dump()
     validation_csv = fields.pop("validation_csv", None)
     target_column = fields.pop("target_column", None)
+    positive_label = fields.pop("positive_label", None)
     objective = TrainingObjective(**fields)
     twin_record: DigitalTwinRecord | None = None
     if validation_csv:
         try:
-            schema = derive_schema(validation_csv, target_column)
+            schema = derive_schema(validation_csv, target_column, positive_label=positive_label)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         objective.has_schema = True

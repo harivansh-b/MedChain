@@ -1,0 +1,30 @@
+# Root .dockerignore — applies when build context is the project root
+venv/
+.venv/
+*.pptx
+*.ppt
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+contracts/node_modules/
+
+# Vite build output (rebuilt inside the image)
+frontend/dist/
+
+# Secrets — never send to daemon
+backend/.env
+
+# IDE / OS
+.vscode/
+*.DS_Store
+Thumbs.db

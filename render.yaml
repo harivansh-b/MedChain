@@ -1,0 +1,81 @@
+# render.yaml — Infrastructure-as-code for Render.com
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy:
+#   1. Push this file to your Git repo
+#   2. Go to Render Dashboard → New → Blueprint
+#   3. Connect your repo — Render will read this file and create the services
+#
+# Secret env vars (MEDCHAIN_SECRET_KEY, MEDCHAIN_MONGODB_URI, etc.)
+# must be set manually in the Render dashboard under each service's
+# "Environment" tab (never commit real secrets).
+
+services:
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  - type: web
+    name: medchain-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .          # project root — Dockerfile uses root-relative COPYs
+    plan: free                # change to "starter" or higher for production
+    healthCheckPath: /health
+    envVars:
+      # ── Auth ──────────────────────────────────────────────────────────────────
+      - key: MEDCHAIN_SECRET_KEY
+        sync: false           # set in Render dashboard, never committed
+      - key: MEDCHAIN_ACCESS_TOKEN_MINUTES
+        value: "120"
+      - key: MEDCHAIN_REFRESH_TOKEN_DAYS
+        value: "14"
+      - key: MEDCHAIN_INVITATION_EXPIRES_DAYS
+        value: "7"
+      - key: MEDCHAIN_RESET_TOKEN_MINUTES
+        value: "60"
+
+      # ── CORS — add your Vercel URL here ───────────────────────────────────────
+      # Example: https://medchain.vercel.app,https://medchain-git-main-yourname.vercel.app
+      - key: MEDCHAIN_CORS_ORIGINS
+        sync: false           # set in Render dashboard after Vercel deploy gives you the URL
+
+      # ── MongoDB Atlas ─────────────────────────────────────────────────────────
+      - key: MEDCHAIN_MONGODB_URI
+        sync: false
+      - key: MEDCHAIN_MONGODB_NAME
+        value: medchain
+
+      # ── Azure Blob Storage ────────────────────────────────────────────────────
+      - key: AZURE_STORAGE_CONNECTION_STRING
+        sync: false
+      - key: AZURE_STORAGE_CONTAINER
+        value: medchain-artifacts
+
+      # ── Blockchain ────────────────────────────────────────────────────────────
+      - key: MEDCHAIN_CHAIN_ID
+        value: "7777"
+      - key: MEDCHAIN_CHAIN_BACKEND
+        value: embedded       # use "embedded" (MongoDB ledger) on free tier; "evm" needs more RAM
+      - key: MEDCHAIN_SIGNER_PRIVATE_KEY
+        sync: false
+
+      # ── Admin bootstrap ───────────────────────────────────────────────────────
+      - key: MEDCHAIN_BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: MEDCHAIN_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: MEDCHAIN_BOOTSTRAP_ADMIN_NAME
+        value: Platform Administrator
+
+      # ── Email (Brevo) ─────────────────────────────────────────────────────────
+      - key: MEDCHAIN_BREVO_API_KEY
+        sync: false
+      - key: MEDCHAIN_MAIL_FROM_EMAIL
+        sync: false
+      - key: MEDCHAIN_MAIL_FROM_NAME
+        value: MedChain
+
+      # ── Frontend base URL (for email links) ───────────────────────────────────
+      # Set this to your Vercel URL after deploying the frontend, e.g.:
+      # https://medchain.vercel.app
+      - key: MEDCHAIN_FRONTEND_BASE_URL
+        sync: false
