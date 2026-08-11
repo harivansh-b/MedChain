@@ -11,19 +11,18 @@
 # "Environment" tab (never commit real secrets).
 
 services:
-
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web
     name: medchain-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: .          # project root — Dockerfile uses root-relative COPYs
-    plan: free                # change to "starter" or higher for production
+    dockerfilePath: ./Dockerfile # root-level, auto-detected by Render
+    dockerContext: . # project root — Dockerfile uses root-relative COPYs
+    plan: free # change to "starter" or higher for production
     healthCheckPath: /health
     envVars:
       # ── Auth ──────────────────────────────────────────────────────────────────
       - key: MEDCHAIN_SECRET_KEY
-        sync: false           # set in Render dashboard, never committed
+        sync: false # set in Render dashboard, never committed
       - key: MEDCHAIN_ACCESS_TOKEN_MINUTES
         value: "120"
       - key: MEDCHAIN_REFRESH_TOKEN_DAYS
@@ -36,7 +35,7 @@ services:
       # ── CORS — add your Vercel URL here ───────────────────────────────────────
       # Example: https://medchain.vercel.app,https://medchain-git-main-yourname.vercel.app
       - key: MEDCHAIN_CORS_ORIGINS
-        sync: false           # set in Render dashboard after Vercel deploy gives you the URL
+        sync: false # set in Render dashboard after Vercel deploy gives you the URL
 
       # ── MongoDB Atlas ─────────────────────────────────────────────────────────
       - key: MEDCHAIN_MONGODB_URI
@@ -54,7 +53,7 @@ services:
       - key: MEDCHAIN_CHAIN_ID
         value: "7777"
       - key: MEDCHAIN_CHAIN_BACKEND
-        value: embedded       # use "embedded" (MongoDB ledger) on free tier; "evm" needs more RAM
+        value: embedded # use "embedded" (MongoDB ledger) on free tier; "evm" needs more RAM
       - key: MEDCHAIN_SIGNER_PRIVATE_KEY
         sync: false
 
